@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"go1f/pkg/config"
 	"net/http"
-	"os"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -13,8 +13,7 @@ import (
 func auth(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		pass := os.Getenv("TODO_PASSWORD")
-		if pass == "" {
+		if config.Config.Password == "" {
 
 			next(w, r)
 			return
@@ -31,7 +30,7 @@ func auth(next http.HandlerFunc) http.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			return []byte(pass), nil
+			return []byte(config.Config.Password), nil
 		})
 		if err != nil {
 			writeJson(w, map[string]string{"error": "invalid token"}, http.StatusUnauthorized)
@@ -54,7 +53,7 @@ func auth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		hash := sha256.Sum256([]byte(pass))
+		hash := sha256.Sum256([]byte(config.Config.Password))
 		currentHash := hex.EncodeToString(hash[:])
 
 		if tokenHash != currentHash {

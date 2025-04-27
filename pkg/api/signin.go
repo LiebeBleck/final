@@ -5,14 +5,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"go1f/pkg/config"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 func signinHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJson(w, map[string]string{"error": "method not allowed"}, http.StatusMethodNotAllowed)
+		return
+	}
+
 	var input struct {
 		Password string `json:"password"`
 	}
@@ -21,18 +26,17 @@ func signinHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expectedPassword := os.Getenv("TODO_PASSWORD")
-	if expectedPassword == "" {
+	if config.Config.Password == "" {
 		writeJson(w, map[string]string{"error": "authentication not configured"}, http.StatusBadRequest)
 		return
 	}
 
-	if input.Password != expectedPassword {
+	if input.Password != config.Config.Password {
 		writeJson(w, map[string]string{"error": "invalid password"}, http.StatusUnauthorized)
 		return
 	}
 
-	hash := sha256.Sum256([]byte(expectedPassword))
+	hash := sha256.Sum256([]byte(config.Config.Password))
 	hashStr := hex.EncodeToString(hash[:])
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -40,7 +44,7 @@ func signinHandler(w http.ResponseWriter, r *http.Request) {
 		"exp":           time.Now().Add(8 * time.Hour).Unix(),
 	})
 
-	tokenString, err := token.SignedString([]byte(expectedPassword))
+	tokenString, err := token.SignedString([]byte(config.Config.Password))
 	if err != nil {
 		writeJson(w, map[string]string{"error": fmt.Sprintf("failed to create token: %v", err)}, http.StatusInternalServerError)
 		return

@@ -104,19 +104,3 @@ func DeleteTask(id string) error {
 	}
 	return nil
 }
-
-func UpdateDate(next, id string) error {
-	query := `UPDATE scheduler SET date = ? WHERE id = ?`
-	res, err := db.Exec(query, next, id)
-	if err != nil {
-		return err
-	}
-	count, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if count == 0 {
-		return fmt.Errorf("task not found")
-	}
-	return nil
-}

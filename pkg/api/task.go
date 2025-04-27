@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const DateFormat = "20060102"
+
 func checkDate(task *db.Task) error {
 	now := time.Now()
 
@@ -15,6 +17,7 @@ func checkDate(task *db.Task) error {
 		task.Date = now.Format(DateFormat)
 	}
 
+	// Проверяем формат даты
 	t, err := time.Parse(DateFormat, task.Date)
 	if err != nil {
 		return fmt.Errorf("invalid date format: %v", err)
@@ -38,6 +41,10 @@ func checkDate(task *db.Task) error {
 }
 
 func getTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJson(w, map[string]string{"error": "method not allowed"}, http.StatusMethodNotAllowed)
+		return
+	}
 
 	id := r.FormValue("id")
 	if id == "" {
@@ -55,6 +62,10 @@ func getTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func addTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJson(w, map[string]string{"error": "method not allowed"}, http.StatusMethodNotAllowed)
+		return
+	}
 
 	var task db.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
@@ -82,6 +93,10 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		writeJson(w, map[string]string{"error": "method not allowed"}, http.StatusMethodNotAllowed)
+		return
+	}
 
 	var task db.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
@@ -113,6 +128,10 @@ func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		writeJson(w, map[string]string{"error": "method not allowed"}, http.StatusMethodNotAllowed)
+		return
+	}
 
 	id := r.FormValue("id")
 	if id == "" {

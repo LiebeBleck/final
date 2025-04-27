@@ -8,10 +8,7 @@ import (
 	"time"
 )
 
-const DateFormat = "20060102"
-
-func afterNow(date, now time.Time) bool {
-
+func afterNow(now, date time.Time) bool {
 	dateYear, dateMonth, dateDay := date.Date()
 	nowYear, nowMonth, nowDay := now.Date()
 	dateTruncated := time.Date(dateYear, dateMonth, dateDay, 0, 0, 0, 0, time.UTC)
@@ -20,95 +17,69 @@ func afterNow(date, now time.Time) bool {
 }
 
 func NextDate(now time.Time, dstart, repeat string) (string, error) {
-
 	if repeat == "" {
 		return "", fmt.Errorf("repeat rule is empty")
 	}
 
 	date, err := time.Parse(DateFormat, dstart)
 	if err != nil {
-		return "", fmt.Errorf("invalid dstart format: %v", err)
+		return "", fmt.Errorf("invalid date format: %v", err)
 	}
 
 	parts := strings.Split(repeat, " ")
-	if len(parts) == 0 {
-		return "", fmt.Errorf("invalid repeat format")
+	if len(parts) < 2 && parts[0] != "y" {
+		return "", fmt.Errorf("invalid repeat rule format")
 	}
-	rule := parts[0]
 
-	switch rule {
+	var next time.Time
+	switch parts[0] {
 	case "d":
-
-		if len(parts) != 2 {
-			return "", fmt.Errorf("invalid format for 'd' rule: interval required")
+		days, err := strconv.Atoi(parts[1])
+		if err != nil || days <= 0 {
+			return "", fmt.Errorf("invalid days in repeat rule: %v", err)
 		}
-		interval, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return "", fmt.Errorf("invalid interval for 'd' rule: %v", err)
+		next = date
+		for !afterNow(now, next) {
+			next = next.AddDate(0, 0, days)
 		}
-		if interval <= 0 || interval > 400 {
-			return "", fmt.Errorf("interval must be between 1 and 400, got %d", interval)
-		}
-
-		for {
-			date = date.AddDate(0, 0, interval)
-			if afterNow(date, now) {
-				break
-			}
-		}
-
 	case "y":
-
-		for {
-			date = date.AddDate(1, 0, 0)
-			if afterNow(date, now) {
-				break
-			}
+		next = date
+		for !afterNow(now, next) {
+			next = next.AddDate(1, 0, 0)
 		}
-
-	case "w", "m":
-
-		return "", fmt.Errorf("unsupported repeat rule: %s", rule)
-
 	default:
-		return "", fmt.Errorf("unknown repeat rule: %s", rule)
+		return "", fmt.Errorf("unsupported repeat rule: %s", parts[0])
 	}
 
-	return date.Format(DateFormat), nil
+	return next.Format(DateFormat), nil
 }
 
 func nextDayHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJson(w, map[string]string{"error": "method not allowed"}, http.StatusMethodNotAllowed)
+		return
+	}
 
 	nowStr := r.FormValue("now")
-	dateStr := r.FormValue("date")
+	date := r.FormValue("date")
 	repeat := r.FormValue("repeat")
 
-	var now time.Time
-	if nowStr == "" {
-		now = time.Now()
-	} else {
-		var err error
-		now, err = time.Parse(DateFormat, nowStr)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("invalid now format: %v", err), http.StatusBadRequest)
-			return
-		}
-	}
-
-	if dateStr == "" {
-		http.Error(w, "date parameter is required", http.StatusBadRequest)
-		return
-	}
-	if repeat == "" {
-		http.Error(w, "repeat parameter is required", http.StatusBadRequest)
+	if nowStr == "" || date == "" {
+		writeJson(w, map[string]string{"error": "now and date parameters are required"}, http.StatusBadRequest)
 		return
 	}
 
-	nextDate, err := NextDate(now, dateStr, repeat)
+	now, err := time.Parse(DateFormat, nowStr)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeJson(w, map[string]string{"error": fmt.Sprintf("invalid now format: %v", err)}, http.StatusBadRequest)
 		return
 	}
 
-	fmt.Fprint(w, nextDate)
+	next, err := NextDate(now, date, repeat)
+	if err != nil {
+		writeJson(w, map[string]string{"error": err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	writeJson(w, map[string]string{"date": next}, http.StatusOK)
 }

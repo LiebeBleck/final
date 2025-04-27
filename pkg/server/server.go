@@ -1,40 +1,21 @@
 package server
 
 import (
-	"fmt"
-	"go1f/pkg/api"
-	"log"
 	"net/http"
 	"os"
+
+	"github.com/LiebeBleck/go_final_project/pkg/api"
 )
 
 func StartServer() error {
 	port := "7540"
-
 	if envPort := os.Getenv("TODO_PORT"); envPort != "" {
 		port = envPort
 	}
 
 	api.Init()
 
-	fs := http.FileServer(http.Dir("web"))
+	http.Handle("/", http.FileServer(http.Dir("web")))
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			http.ServeFile(w, r, "web/index.html")
-			return
-		}
-
-		fs.ServeHTTP(w, r)
-	})
-
-	http.Handle("/css/", fs)
-	http.Handle("/js/", fs)
-	http.Handle("/favicon.ico", fs)
-
-	log.Printf("Server starting on port %s...\n", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		return fmt.Errorf("failed to start server: %v", err)
-	}
-	return nil
+	return http.ListenAndServe(":"+port, nil)
 }

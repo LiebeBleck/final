@@ -10,6 +10,10 @@ type TasksResp struct {
 }
 
 func tasksHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJson(w, map[string]string{"error": "method not allowed"}, http.StatusMethodNotAllowed)
+		return
+	}
 
 	tasks, err := db.Tasks(50)
 	if err != nil {
